@@ -2,7 +2,7 @@
 
 mpu9250 is a micropython module for the InvenSense MPU9250 sensor.
 It measures acceleration, turn rate and the magnetic field in three axes.  
-Breakout board: (Drotek)[http://www.drotek.fr/shop/en/home/421-mpu9250-gyro-accelerometer-magnetometer.html]  
+Breakout board: [Drotek](http://www.drotek.fr/shop/en/home/421-mpu9250-gyro-accelerometer-magnetometer.html)  
 
 The MPU9250 has a number of advantages over the MPU9150 (which has manufacturing status
 "not recommended for new designs"). The magnetometer is capable of continuous operation,
@@ -16,7 +16,7 @@ In consequence the coordinate system of the magnetometer is not aligned with tha
 of the other components. This driver corrects this so that the axes of each instrument
 correspond with those of the accelerometer.
 
-Since the driver is likely to be used with the (sensor fusion module)[https://github.com/micropython-IMU/micropython-fusion.git]
+Since the driver is likely to be used with the [sensor fusion module](https://github.com/micropython-IMU/micropython-fusion.git)
 the orientation of the sensor relative to the vehicle is significant. The Madgwick algorithm assumes
 x is orientated towards the front of the vehicle, y is left-right, and z is down. To accommodate
 cases where the sensor is mounted orthogonally to this orientation, support is provided for inverting and
@@ -182,7 +182,7 @@ See "Other MPU9250 properties" below.
 This represents a vector in a 3D space which can be a magnetic field, an acceleration or
 a rotation rate. It has read-only x y and z properties which represent the vector's
 components relative to the vehicle containing the sensor. It supports cases where the
-sensor is mounted orthogonally to the vehicle coordinates: (sensor fusion)[https://github.com/peterhinch/micropython-fusion]
+sensor is mounted orthogonally to the vehicle coordinates: [sensor fusion module](https://github.com/micropython-IMU/micropython-fusion.git)
 assumes that the x axis corresponds to the front of the vehicle, y is left-right, and
 z is vertical. 
 
@@ -198,7 +198,7 @@ The class's internal storage uses Cartesian coordinates relative to the sensor.
   multiplied by the corresponding value in the tuple. Allows aexes to be inverted.
 
 ``calibrate()`` Optional method to enable fixed offsets to be stored and allowed for. Arguments:
-  1. Stop function: routine will run until this passed function returns False.
+  1. Stop function: routine will run until this passed function returns ``False``.
   2. Wait function: Optional. Default is a 50mS delay between readings. User can supply
   an alternative, for example a thread-aware delay in cooperative multitasking environments.
 
