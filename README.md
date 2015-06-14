@@ -46,13 +46,24 @@ print(imu.mag.xyz)
 print(imu.temperature)
 ```
 
-# Classes
+# Modules
+
+To employ the driver it is only necessary to import the mpu9250 module and to use the ``MPU9250`` class.
+
+### mpu9250
 
 ``MPU9250``
-Module for the MPU9250 sensor.
+Class for the MPU9250 sensor.
+
+### imu
+
+``InvenSenseMPU``
+Base class for InvenSense inertial measurement units
+
+### vector3d
 
 ``Vector3d``
-Object containing a 3D vector
+Class for a 3D vector
 
 # MPU9250 Class
 

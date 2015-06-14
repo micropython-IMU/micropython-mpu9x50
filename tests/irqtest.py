@@ -9,7 +9,7 @@ micropython.alloc_emergency_exception_buf(100)
 # Note: with a magnetometer read in the callback, a frequency of 1KHz hogged the CPU
 tim = pyb.Timer(4, freq=20)            # freq in Hz
 
-imu = MPU9250()
+imu = MPU9250('X')
 
 def cb(timer):                          # Callback: populate array members
     imu.get_gyro_irq()
