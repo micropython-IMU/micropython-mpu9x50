@@ -274,4 +274,4 @@ power cycle is required to clear it.
 >>> a.mag.cal
 (35.30567, 18.92022, -9.428905)
 >>>
-´´´
+```
