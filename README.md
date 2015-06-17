@@ -263,7 +263,7 @@ power cycle is required to clear it.
 
 # Demo of calibration
 
-'''python
+```python
 >>> from  mpu9250 import MPU9250
 >>> a = MPU9250('x')
 >>> a.mag.cal
@@ -274,4 +274,4 @@ power cycle is required to clear it.
 >>> a.mag.cal
 (35.30567, 18.92022, -9.428905)
 >>>
-'''
+```
