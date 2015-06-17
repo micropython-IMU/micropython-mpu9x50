@@ -6,7 +6,6 @@ As of now, this repo holds:
 
 vector3d will eventually be spun out to serve as common starting point for other
 imu-device drivers.  
-This repository will be renamed mpu9x50.  
 Documentation for the MPU9150 can be found in README_MPU9150.md
 
 # Module mpu9250
