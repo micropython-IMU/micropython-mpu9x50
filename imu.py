@@ -40,11 +40,7 @@ THE SOFTWARE.
 import pyb
 from vector3d import Vector3d
 
-X_AXIS = const(0)
-Y_AXIS = const(1)
-Z_AXIS = const(2)
-
-class MPUException(Exception):
+class MPUException(OSError):
     pass
 
 def bytes_toint(msb, lsb):
@@ -61,7 +57,7 @@ class InvenSenseMPU(object):
     '''
     Module for InvenSense 9DOF IMUs. Base class implements features common to MPU9150 and MPU9250.
     '''
-    _I2Cerror = "I2C communication failure"
+    _I2Cerror = "I2C failure when communicating with IMU"
     def __init__(self, side_str, device_addr, transposition, scaling):
         self._accel = Vector3d(transposition, scaling, self._accel_callback)
         self._gyro = Vector3d(transposition, scaling, self._gyro_callback)
@@ -95,10 +91,7 @@ class InvenSenseMPU(object):
                 raise ValueError('Device address must be 0 or 1')
             self.mpu_addr = self._mpu_addr[device_addr]
 
-        self._read(self.buf1, 0x75, self.mpu_addr)
-        self.chip_id = int(self.buf1[0])
-        if self.chip_id != self._chip_id:
-            raise MPUException('MPU communication failure')
+        temp = self.chip_id                     # Test communication by reading chip_id: throws exception on error
         # Can communicate with chip. Set it up.
         self.wake()                             # wake it up
         self.passthrough = True                 # Enable mag access from main I2C bus
@@ -126,7 +119,7 @@ class InvenSenseMPU(object):
         try:
             self._write(0x01, 0x6B, self.mpu_addr) # Use best clock source
         except OSError:
-            print(self._I2Cerror)
+            raise MPUException(self._I2Cerror)
         return 'awake'
 
     # mode
@@ -137,8 +130,20 @@ class InvenSenseMPU(object):
         try:
             self._write(0x40, 0x6B, self.mpu_addr)
         except OSError:
-            print(self._I2Cerror)
+            raise MPUException(self._I2Cerror)
         return 'asleep'
+
+    # chip_id
+    @property
+    def chip_id(self):
+        try:
+            self._read(self.buf1, 0x75, self.mpu_addr)
+        except OSError:
+            raise MPUException(self._I2Cerror)
+        chip_id = int(self.buf1[0])
+        if chip_id != self._chip_id:
+            raise ValueError('Bad chip ID retrieved: MPU communication failure')
+        return chip_id
 
     # passthrough
     @property
@@ -150,7 +155,7 @@ class InvenSenseMPU(object):
             self._read(self.buf1, 0x37, self.mpu_addr)
             return self.buf1[0] & 0x02 > 0
         except OSError:
-            print(self._I2Cerror)
+            raise MPUException(self._I2Cerror)
 
     @passthrough.setter
     def passthrough(self, mode):
@@ -160,9 +165,9 @@ class InvenSenseMPU(object):
                 self._write(val, 0x37, self.mpu_addr) # I think this is right.
                 self._write(0x00, 0x6A, self.mpu_addr)
             except OSError:
-                print(self._I2Cerror)
+                raise MPUException(self._I2Cerror)
         else:
-            print('pass either True or False')
+            raise ValueError('pass either True or False')
 
     # sample rate. Not sure why you'd ever want to reduce this from the default.
     @property
@@ -176,7 +181,7 @@ class InvenSenseMPU(object):
             self._read(self.buf1, 0x19, self.mpu_addr)
             return self.buf1[0]
         except OSError:
-            print(self._I2Cerror)
+            raise MPUException(self._I2Cerror)
 
     @sample_rate.setter
     def sample_rate(self, rate):
@@ -188,7 +193,7 @@ class InvenSenseMPU(object):
         try:
             self._write(rate, 0x19, self.mpu_addr)
         except OSError:
-            print(self._I2Cerror)
+            raise MPUException(self._I2Cerror)
 
     # accelerometer range
     @property
@@ -203,20 +208,20 @@ class InvenSenseMPU(object):
             ari = self.buf1[0]//8
             self._ar = ari # if read succeeded
         except OSError:
-            print(self._I2Cerror)
-            ari = None
+            raise MPUException(self._I2Cerror)
         return ari
 
     @accel_range.setter
     def accel_range(self, accel_range):
         ar = (0x00, 0x08, 0x10, 0x18)
-        try:
-            self._write(ar[accel_range], 0x1C, self.mpu_addr)
-            self._ar = accel_range # if write succeeded
-        except IndexError:
-            print('accel_range can only be 0, 1, 2 or 3')
-        except OSError:
-            print(self._I2Cerror)
+        if accel_range in range(len(ar)):
+            try:
+                self._write(ar[accel_range], 0x1C, self.mpu_addr)
+                self._ar = accel_range # if write succeeded
+            except OSError:
+                raise MPUException(self._I2Cerror)
+        else:
+            raise ValueError('accel_range can only be 0, 1, 2 or 3')
 
     # gyroscope range
     @property
@@ -232,21 +237,20 @@ class InvenSenseMPU(object):
             gri = self.buf1[0]//8
             self._gr = gri # if read succeeded
         except OSError:
-            gri = None
-            print(self._I2Cerror)
+            raise MPUException(self._I2Cerror)
         return gri
 
     @gyro_range.setter
     def gyro_range(self, gyro_range):
         gr = (0x00, 0x08, 0x10, 0x18)
-        try:
-            self._write(gr[gyro_range], 0x1B, self.mpu_addr) # Sets fchoice = b11 which enables filter
-            self._gr = gyro_range # if write succeeded
-        except IndexError:
-            print('gyro_range can only be 0, 1, 2 or 3')
-        except OSError:
-            print(self._I2Cerror)
-
+        if gyro_range in range(len(gr)):
+            try:
+                self._write(gr[gyro_range], 0x1B, self.mpu_addr) # Sets fchoice = b11 which enables filter
+                self._gr = gyro_range               # if write succeeded
+            except OSError:
+                raise MPUException(self._I2Cerror)
+        else:
+            raise ValueError('gyro_range can only be 0, 1, 2 or 3')
     # Accelerometer
     @property
     def accel(self):
@@ -259,14 +263,14 @@ class InvenSenseMPU(object):
         try:
             self._read(self.buf6, 0x3B, self.mpu_addr)
         except OSError:
-            return self._accel # Last value
+            raise MPUException(self._I2Cerror)
         self._accel._ivector[0] = bytes_toint(self.buf6[0], self.buf6[1])
         self._accel._ivector[1] = bytes_toint(self.buf6[2], self.buf6[3])
         self._accel._ivector[2] = bytes_toint(self.buf6[4], self.buf6[5])
         scale = (16384, 8192, 4096, 2048)
-        self._accel._set(X_AXIS, self._accel._ivector[0]/scale[self._ar])
-        self._accel._set(Y_AXIS, self._accel._ivector[1]/scale[self._ar])
-        self._accel._set(Z_AXIS, self._accel._ivector[2]/scale[self._ar])
+        self._accel._vector[0] = self._accel._ivector[0]/scale[self._ar]
+        self._accel._vector[1] =  self._accel._ivector[1]/scale[self._ar]
+        self._accel._vector[2] =  self._accel._ivector[2]/scale[self._ar]
 
     def get_accel_irq(self):
         '''
@@ -291,19 +295,19 @@ class InvenSenseMPU(object):
         try:
             self._read(self.buf6, 0x43, self.mpu_addr)
         except OSError:
-            return self._gyro # Last value
+            raise MPUException(self._I2Cerror)
         self._gyro._ivector[0] = bytes_toint(self.buf6[0], self.buf6[1])
         self._gyro._ivector[1] = bytes_toint(self.buf6[2], self.buf6[3])
         self._gyro._ivector[2] = bytes_toint(self.buf6[4], self.buf6[5])
         scale = (131, 65.5, 32.8, 16.4)
-        self._gyro._set(X_AXIS, self._gyro._ivector[0]/scale[self._gr])
-        self._gyro._set(Y_AXIS, self._gyro._ivector[1]/scale[self._gr])
-        self._gyro._set(Z_AXIS, self._gyro._ivector[2]/scale[self._gr])
+        self._gyro._vector[0] =  self._gyro._ivector[0]/scale[self._gr]
+        self._gyro._vector[1] =  self._gyro._ivector[1]/scale[self._gr]
+        self._gyro._vector[2] =  self._gyro._ivector[2]/scale[self._gr]
 
     def get_gyro_irq(self):
         '''
         For use in interrupt handlers. Sets self._gyro._ivector[] to signed
-        unscaled integer gyro values.
+        unscaled integer gyro values. Error trapping disallowed.
         '''
         self._read(self.buf6, 0x43, self.mpu_addr)
         self._gyro._ivector[0] = bytes_toint(self.buf6[0], self.buf6[1])

@@ -1,8 +1,6 @@
 # mpu9250.py MicroPython driver for the InvenSense MPU9250 inertial measurement unit
-# Adapted from Sebastian Plamauer's MPU9150 driver:
-# https://github.com/micropython-IMU/micropython-mpu9150.git
 # Authors Peter Hinch, Sebastian Plamauer
-# V0.1 13th June 2015 Experimental: this code is not yet fully tested
+# V0.5 17th June 2015
 
 '''
 mpu9250 is a micropython module for the InvenSense MPU9250 sensor.
@@ -27,20 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 '''
 
-# User access is now by properties e.g.
-# myimu = MPU9250('X')
-# magx = myimu.mag.x
-# accelxyz = myimu.accel.xyz
-# Error handling: on code used for initialisation, abort with message
-# At runtime try to continue returning last good data value. We don't want aircraft
-# crashing. However if the I2C has crashed we're probably stuffed.
-
-from imu import InvenSenseMPU, bytes_toint
+from imu import InvenSenseMPU, bytes_toint, MPUException
 from vector3d import Vector3d
-
-X_AXIS = const(0)
-Y_AXIS = const(1)
-Z_AXIS = const(2)
 
 # MPU9250 constructor arguments
 # 1.    side_str 'X' or 'Y' depending on the Pyboard I2C interface being used
@@ -60,6 +46,7 @@ class MPU9250(InvenSenseMPU):
         self.gyro_filter_range = 0
         self._mag_stale_count = 0               # MPU9250 count of consecutive reads where old data was returned
         self.mag_correction = self._magsetup()  # 16 bit, 100Hz update.Return correction factors.
+        self._mag_callback() # Seems neccessary to kick the mag off else 1st reading is zero (???)
 
     @property
     def sensors(self):
@@ -74,8 +61,7 @@ class MPU9250(InvenSenseMPU):
         try:
             self._read(self.buf2, 0x41, self.mpu_addr)
         except OSError:
-            print(MPU9250._I2Cerror)
-            return 0
+            raise MPUException(self._I2Cerror)
         return bytes_toint(self.buf2[0], self.buf2[1])/333.87 + 21 # I think
     # Low pass filters
     @property
@@ -90,20 +76,19 @@ class MPU9250(InvenSenseMPU):
             self._read(self.buf1, 0x1A, self.mpu_addr)
             res = self.buf1[0] & 7
         except OSError:
-            print(MPU9250._I2Cerror)
-            res = None
+            raise MPUException(self._I2Cerror)
         return res
 
     @gyro_filter_range.setter
     def gyro_filter_range(self, filt):
         # set range
-        try:
-            if (filt >= 0) and (filt < 8):
+        if filt in range(8):
+            try:
                 self._write(filt, 0x1A, self.mpu_addr)
-            else:
-                print('Filter coefficient must be between 0 and 7')
-        except OSError:
-           print(MPU9250._I2Cerror)
+            except OSError:
+                raise MPUException(self._I2Cerror)
+        else:
+            raise ValueError('Filter coefficient must be between 0 and 7')
 
     @property
     def accel_filter_range(self):
@@ -117,20 +102,20 @@ class MPU9250(InvenSenseMPU):
             self._read(self.buf1, 0x1D, self.mpu_addr)
             res = self.buf1[0] & 7
         except OSError:
-            print(MPU9250._I2Cerror)
-            res = None
+            raise MPUException(self._I2Cerror)
         return res
 
     @accel_filter_range.setter
     def accel_filter_range(self, filt):
         # set range
-        try:
-            if (filt >= 0) and (filt < 8):      # Sets ACCEL_FCHOICE = 1 enabling fiter
+        if filt in range(8):
+            try:
                 self._write(filt, 0x1D, self.mpu_addr)
-            else:
-                print('Filter coefficient must be between 0 and 7')
-        except OSError:
-           print(MPU9250._I2Cerror)
+            except OSError:
+                raise MPUException(self._I2Cerror)
+        else:
+            raise ValueError('Filter coefficient must be between 0 and 7')
+
     # Magnetometer initialisation: use 16 bit continuous mode. Mode 1 is 8Hz mode 2 is 100Hz repetition
     # returns correction values
     def _magsetup(self):                        # mode 2 100Hz continuous reads, 16 bit
@@ -140,7 +125,7 @@ class MPU9250(InvenSenseMPU):
             self._write(0, 0x0A, self._mag_addr)        # Power down mode (AK8963 manual 6.4.6)
             self._write(0x16, 0x0A, self._mag_addr)     # 16 bit (0.15uT/LSB not 0.015), mode 2
         except OSError:
-            print(MPU9250._I2Cerror)
+            raise MPUException(self._I2Cerror)
         x = (0.5*(self.buf3[0] -128))/128 + 1
         y = (0.5*(self.buf3[1] -128))/128 + 1
         z = (0.5*(self.buf3[2] -128))/128 + 1
@@ -161,30 +146,29 @@ class MPU9250(InvenSenseMPU):
             self._read(self.buf6, 0x03, self._mag_addr)
             self._read(self.buf1, 0x09, self._mag_addr)
         except OSError:
-            self._mag_stale_count += 1
-            return self._mag
+            raise MPUException(self._I2Cerror)
         if self.buf1[0] & 0x08 > 0:             # An overflow has occurred
-            self._mag_stale_count +=1
-            return self._mag
+            self._mag_stale_count +=1           # Error conditions retain last good value
+            return                              # user should check for ever increasing stale_counts
         self._mag._ivector[1] = bytes_toint(self.buf6[1], self.buf6[0])  # Note axis twiddling and little endian
         self._mag._ivector[0] = bytes_toint(self.buf6[3], self.buf6[2])
         self._mag._ivector[2] = -bytes_toint(self.buf6[5], self.buf6[4])
-        scale = 6.6666                          # scale is (1/0.15uT/LSB)
-        self._mag._set(X_AXIS, self._mag._ivector[0]*self.mag_correction[0]/scale)
-        self._mag._set(Y_AXIS, self._mag._ivector[1]*self.mag_correction[1]/scale)
-        self._mag._set(Z_AXIS, self._mag._ivector[2]*self.mag_correction[2]/scale)
+        scale = 0.15                            # scale is 0.15uT/LSB
+        self._mag._vector[0] =  self._mag._ivector[0]*self.mag_correction[0]*scale
+        self._mag._vector[1] =  self._mag._ivector[1]*self.mag_correction[1]*scale
+        self._mag._vector[2] =  self._mag._ivector[2]*self.mag_correction[2]*scale
         self._mag_stale_count = 0
 
     @property
     def mag_stale_count(self):                  # Number of consecutive times where old data was returned
         return self._mag_stale_count
 
-    def get_mag_irq(self): # Uncorrected values because floating point uses heap
+    def get_mag_irq(self):                      # Uncorrected values because floating point uses heap
         self._read(self.buf1, 0x02, self._mag_addr)
         if self.buf1[0] == 1:                   # Data is ready
             self._read(self.buf6, 0x03, self._mag_addr)
             self._read(self.buf1, 0x09, self._mag_addr)    # Mandatory status2 read
-            self._mag._ivector[1] = 0 # This causes "uncaught exception in Timer(4) interrupt handler"
+            self._mag._ivector[1] = 0
             if self.buf1[0] & 0x08 == 0:        # No overflow has occurred
                 self._mag._ivector[1] = bytes_toint(self.buf6[1], self.buf6[0])
                 self._mag._ivector[0] = bytes_toint(self.buf6[3], self.buf6[2])

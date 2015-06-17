@@ -44,6 +44,7 @@ print(imu.accel.xyz)
 print(imu.gyro.xyz)
 print(imu.mag.xyz)
 print(imu.temperature)
+print(imu.accel.z)
 ```
 
 # Modules
@@ -52,20 +53,27 @@ To employ the driver it is only necessary to import the mpu9250 module and to us
 
 ### mpu9250
 
-``MPU9250``
-Class for the MPU9250 sensor.
+``MPU9250``  
+Class for the MPU9250 sensor.  
+``MPUException``  
+This will be raised in the event of an I2C error. It is derived from the Python ``OSError``.
 
 ### imu
 
-``InvenSenseMPU``
-Base class for InvenSense inertial measurement units
+``InvenSenseMPU``  
+Base class for InvenSense inertial measurement units.
 
 ### vector3d
 
-``Vector3d``
-Class for a 3D vector
+``Vector3d``  
+Class for a 3D vector. This is documented in vector3d.md.
 
 # MPU9250 Class
+
+The class has various properties returning Vector3d instances. The principal properties
+of the Vector3d are ``x``, ``y`` and ``z`` returning the vector's components and ``xyz`` which returns
+a 3-tuple of the components (x, y, z). It also supports calibration and conversion to vehicle
+relative coordinates.
 
 ## Methods
 
@@ -85,9 +93,9 @@ wakes the device
 ``sleep()``  
 sets the device to sleep mode  
 
-``get_accel_irq()``
-``get_gyro_irq()``
-``get_mag_irq()``
+``get_accel_irq()``  
+``get_gyro_irq()``  
+``get_mag_irq()``  
 These methods are somewhat experimental. They are capable of being called from within an
 interrupt callback and update the integer properties only of the relevant Vector3D object.
 Currently writing nontrivial MicroPython interrupt callbacks is something of a black art
@@ -95,14 +103,13 @@ as it can be unclear when the heap is likely to be invoked causing an exception.
 
 ## Principal Properties
 
-``sensors``
-Returns three Vector3D objects, accelerometer, gyro and magnetometer.
+``sensors``  
+Returns three Vector3d objects, accelerometer, gyro and magnetometer.
 
 ``accel_range`` integer 0 to 3 read/write  
-Returns the current accel range and sets it to ``accel_range`` if argument is passed.  
-Determines the accelerometer full scale range as per the table below. Note that the
-x, y, z values from the driver are scaled to units of g regardless of the range selected.
-Range affects only the full scale capability and resolution.
+Returns or sets the current accelerometer range: this determines the accelerometer full scale
+range as per the table below. Note that the x, y, z values from the driver are scaled to units
+of g regardless of the range selected. Range affects only the full scale capability and resolution.
 
 | Range | Value (+-g) |
 |:-----:|:-----------:|
@@ -151,9 +158,9 @@ suggests an error condition.
 As described above: a count of the number of consecutive times in the curent sequence
 of reads that the driver has returned out-of-date values.
 
-``accel_filter_range`` integer 0 to 7 read/write   
+``accel_filter_range`` integer 0 to 7 read/write  
 The digital low pass filter enables the effect of vibration to be reduced in the
-accelerometer and gyro readings. The following table gives the approximate bandwidth
+accelerometer readings. The following table gives the approximate bandwidth
 and delay for the filter.
 
 | value | bw(Hz) | Delay(mS) |
@@ -172,8 +179,7 @@ Note: in my testing option 7 produced garbage.
 ``gyro_filter_range`` integer 0 to 7 read/write  
 
 The digital low pass filter enables the effect of vibration to be reduced in the
-accelerometer and gyro readings. The following table gives the approximate bandwidth
-and delay for the filter.
+gyro readings. The following table gives the approximate bandwidth and delay for the filter.
 
 | value | bw(Hz) | Delay(mS) |
 |:-----:|:------:|:---------:|
@@ -188,67 +194,6 @@ and delay for the filter.
 
 See "Other MPU9250 properties" below.
 
-# Vector3D Class
-
-This represents a vector in a 3D space which can be a magnetic field, an acceleration or
-a rotation rate. It has read-only x y and z properties which represent the vector's
-components relative to the vehicle containing the sensor. It supports cases where the
-sensor is mounted orthogonally to the vehicle coordinates: [sensor fusion module](https://github.com/micropython-IMU/micropython-fusion.git)
-assumes that the x axis corresponds to the front of the vehicle, y is left-right, and
-z is vertical. 
-
-The class's internal storage uses Cartesian coordinates relative to the sensor.
-
-## Methods
-
-``Vector3d()`` Constructor has two mandatory arguments
-  1. transposition a 3-tuple which must contain three unique integer values from 0 to 2. It relates
-  vehicle axes to sensor axes. Hence (0,1,2) effects no change. (1,0,2) interchanges the x and y
-  axes for the case where the sensor is rotated through 90 degrees.
-  2. scaling A 3-tuple with each element normally being 1 or -1. Returned x, y and z values are
-  multiplied by the corresponding value in the tuple. Allows aexes to be inverted.
-
-``calibrate()`` Optional method to enable fixed offsets to be stored and allowed for. Arguments:
-  1. Stop function: routine will run until this passed function returns ``False``.
-  2. Wait function: Optional. Default is a 50mS delay between readings. User can supply
-  an alternative, for example a thread-aware delay in cooperative multitasking environments.
-
-The function takes repeated readings until stopped, when it stores the average vector as a 3-tuple
-in the ``cal`` property. This is then used in subsequent x, y, z and xyz readings. Note that the
-calibration procedure for the magnetometer involves rotating the sensor around each orthogonal
-axis. For the gyro the unit should be held stationary. Calibration is not normally required for
-the accelerometer.
-
-## Properties
-
-``x`` ``y`` ``z`` float read only  
-These return the scaled vehicle relative coordinates.
-
-``xyz`` float 3-tuple read only  
-Returns a 3-tuple (x,y,z) of scaled vehicle relative coordinates.
-Note that the above properties cause the device x, y and z values to be read. Use ``xyz`` if
-timing is critical or if it is necessary that all three values should originate at the same instant.
-
-``ix`` ``iy`` ``iz`` integer read only  
-Return unscaled, sensor relative, integer coordinates as read from the device.
-
-``ixyz`` integer 3-tuple read only  
-Returns (x,y,z) of sensor relative, integer coordinates as read from the device.
-The integer reads do not provoke a device read, returning the last data to be read by any
-method.
-
-``transpose`` integer 3-tuple read only  
-Returns transposition 3-tuple as passed to constructor.
-
-``scale`` integer 3-tuple read only  
-Returns scaling 3-tuple as passed to constructor.
-
-``magnitude`` float read only  
-Convenience property returning the absolute magnitude of the vector.
-
-``cal`` float 3-tuple
-Holds the calibration offsets.
-
 #### Use in interrupt callbacks
 
 MicroPython interrupt callbacks prohibit the use of the heap, which rules out a number of
@@ -257,18 +202,17 @@ Currently it is not always evident whether code will use the heap, so any use of
 techniques should be considered experimental. The following MPU9250 methods provide access
 to the device where this must be performed in a callback.
 
-``get_accel_irq()``
-``get_gyro_irq()``
-``get_mag_irq()``
+``get_accel_irq()``  
+``get_gyro_irq()``  
+``get_mag_irq()``  
 These methods read the device and update the integer values of the Vector3D objects only.
 These values hold unscaled values direct from the device so coordinates are device
 relative and no calibration, correction or scaling is applied.
 
-
 Note that the scaling factors of the accelerometer and gyro depend only on the range
 selected, hence these can be hard coded in the callback. To get the most accurate readings
 from the magnetometer the factory-set corrections should be applied. These are in
-the property ``mag_correction[]`` but being floating point values cannot be used in a callback.
+the property ``mag_correction`` but being floating point values cannot be used in a callback.
 Options (depending on application) are to apply them outside the callback, or convert
 them to scaled integers in initialisation code.
 
@@ -276,21 +220,23 @@ See tests/irqtest.py for example code.
 
 ## Other MPU9250 properties
 
-``passthrough`` Boolean read/write
+``passthrough`` Boolean read/write  
 sets passthrough mode. It is activated (True) by default. This needs to be activated
 to enable the magnetometer interface to be linked to the SDA, SCL pads.
 
-``sample_rate`` 8 bit integer read/write
+``sample_rate`` 8 bit integer read/write  
 Determines the update rate of the sensor registers. Values should be in range 0 to 255.
 The update rate is given by rate = Internal_Sample_Rate / (1 + sample_rate). It is not
 clear, given the subset of functionality supported by this driver, why you might want
 to change this from the zero default.
 
-``mag_correction`` float 3-tuple
+``mag_correction`` float 3-tuple  
 Holds factory-set magnetometer correction values.
 
 ``chip_id``  
-ID of chip (113) )is hardcoded on the sensor.
+The ID of chip (113) is hardcoded on the sensor. Reading this property will test the
+communications with the IMU by reading this value which is returned to the user. A
+ValueError will be raised if the value is incorrect.
 
 ``mpu_addr``  
 I2C adress of the accelerometer and the gyroscope.
@@ -300,3 +246,32 @@ I2C adress of the magnetometer.
 
 ``timeout``  
 Timeout for I2C operations.
+
+# Exception handling
+
+Incorrect values such as
+```python
+imu = MPU9250('Z')
+```
+will raise a ValueError with a meaningful error message.  
+When any communication with the IMU takes place it is possible for the I2C bus to lock up.
+This is normally a consequence of hardware failure such as the device being connected incorrectly
+or leads being too long. In this instance a custom MPUException will be raised with a
+dscriptive message. This is derived from Python's OSError: the user may trap either in the hope
+of continuing operation. In my experience this seldom works: if the I2C bus locks up a
+power cycle is required to clear it.
+
+# Demo of calibration
+
+'''python
+>>> from  mpu9250 import MPU9250
+>>> a = MPU9250('x')
+>>> a.mag.cal
+(0, 0, 0)
+>>> import pyb
+>>> sw = pyb.Switch()
+>>> a.mag.calibrate(sw) # User rotates unit about each axis then presses the Pyboard switch
+>>> a.mag.cal
+(35.30567, 18.92022, -9.428905)
+>>>
+'''

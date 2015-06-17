@@ -1,7 +1,7 @@
 # vector3d.py 3D vector class for use in inertial measurement unit drivers
 # Authors Peter Hinch, Sebastian Plamauer
 
-# V0.1 14th June 2015 Experimental: this code is not yet fully tested
+# V0.5 17th June 2015
 
 '''
 The MIT License (MIT)
@@ -24,7 +24,7 @@ THE SOFTWARE.
 '''
 
 import pyb
-from math import sqrt
+from math import sqrt, degrees, acos, atan2
 
 def default_wait():
     pyb.delay(50)
@@ -50,9 +50,6 @@ class Vector3d(object):
     def argcheck(self, arg, name):
         if len(arg) != 3 or not (type(arg) is list or type(arg) is tuple):
             raise ValueError(name + ' must be a 3 element list or tuple')
-
-    def _set(self, axis, val):                  # Private setter: x,y,z,xyz are read-only
-        self._vector[axis] = val
 
     def calibrate(self, stopfunc, waitfunc = default_wait):
         self.update()
@@ -90,10 +87,29 @@ class Vector3d(object):
         return (self._calvector[self._transpose[0]] * self._scale[0],
                 self._calvector[self._transpose[1]] * self._scale[1],
                 self._calvector[self._transpose[2]] * self._scale[2])
+
     @property
     def magnitude(self):
-        self.update()
-        return sqrt(self.x**2 + self.y**2 + self.z**2)
+        x, y, z = self.xyz # All measurements must correspond to the same instant
+        return sqrt(x**2 + y**2 + z**2)
+
+    @property
+    def elevation(self):
+        return 90 - self.inclination
+
+    @property
+    def inclination(self):
+        x, y, z = self.xyz
+        return degrees(acos(z / sqrt(x**2 + y**2 + z**2)))
+
+    @property
+    def elevation(self):
+        return 90 - self.inclination
+
+    @property
+    def azimuth(self):
+        x, y, z = self.xyz
+        return degrees(atan2(y, x))
 
     # Raw uncorrected integer values from sensor
     @property
