@@ -40,8 +40,14 @@ THE SOFTWARE.
 import pyb
 from vector3d import Vector3d
 
+
 class MPUException(OSError):
+    '''
+    Exception for MPU devices
+    '''
+
     pass
+
 
 def bytes_toint(msb, lsb):
     '''
@@ -50,15 +56,19 @@ def bytes_toint(msb, lsb):
     Can be used in an interrupt handler
     '''
     if not msb & 0x80:
-        return msb << 8 | lsb # +ve
-    return -(((msb ^ 255) << 8)| (lsb ^ 255) +1)
+        return msb << 8 | lsb  # +ve
+    return - (((msb ^ 255) << 8) | (lsb ^ 255) + 1)
+
 
 class InvenSenseMPU(object):
     '''
     Module for InvenSense 9DOF IMUs. Base class implements features common to MPU9150 and MPU9250.
     '''
+
     _I2Cerror = "I2C failure when communicating with IMU"
+
     def __init__(self, side_str, device_addr, transposition, scaling):
+
         self._accel = Vector3d(transposition, scaling, self._accel_callback)
         self._gyro = Vector3d(transposition, scaling, self._gyro_callback)
         self.buf1 = bytearray([0]*1)            # Pre-allocated buffers for reads: allows reads to
@@ -72,10 +82,12 @@ class InvenSenseMPU(object):
             pyb.delay(200-tim)
 
         try:                                    # Initialise I2C
-            side = {'X':1, 'Y':2}[side_str.upper()]
+            side = {'X': 1, 'Y': 2}[side_str.upper()]
         except KeyError:
             raise ValueError('I2C side must be X or Y')
+
         self._mpu_i2c = pyb.I2C(side, pyb.I2C.MASTER)
+
         if device_addr is None:
             devices = set(self._mpu_i2c.scan())
             mpus = devices.intersection(set(self._mpu_addr))
@@ -87,17 +99,18 @@ class InvenSenseMPU(object):
             else:
                 raise ValueError("Two MPU's detected: must specify a device address")
         else:
-            if not device_addr in (0,1):
+            if device_addr not in (0, 1):
                 raise ValueError('Device address must be 0 or 1')
             self.mpu_addr = self._mpu_addr[device_addr]
 
-        temp = self.chip_id                     # Test communication by reading chip_id: throws exception on error
+        self.chip_id                     # Test communication by reading chip_id: throws exception on error
         # Can communicate with chip. Set it up.
         self.wake()                             # wake it up
         self.passthrough = True                 # Enable mag access from main I2C bus
         self.accel_range = 0                    # default to highest sensitivity
         self.gyro_range = 0                     # Likewise for gyro
 
+    # read from device
     def _read(self, buf, memaddr, addr):        # addr = I2C device address, memaddr = memory location within the I2C device
         '''
         Read bytes to pre-allocated buffer Caller traps OSError.
@@ -117,7 +130,7 @@ class InvenSenseMPU(object):
         Wakes the device.
         '''
         try:
-            self._write(0x01, 0x6B, self.mpu_addr) # Use best clock source
+            self._write(0x01, 0x6B, self.mpu_addr)  # Use best clock source
         except OSError:
             raise MPUException(self._I2Cerror)
         return 'awake'
@@ -136,6 +149,9 @@ class InvenSenseMPU(object):
     # chip_id
     @property
     def chip_id(self):
+        '''
+        Returns Chip ID
+        '''
         try:
             self._read(self.buf1, 0x75, self.mpu_addr)
         except OSError:
@@ -159,10 +175,13 @@ class InvenSenseMPU(object):
 
     @passthrough.setter
     def passthrough(self, mode):
+        '''
+        Sets passthrough mode True or False
+        '''
         if type(mode) is bool:
             val = 2 if mode else 0
             try:
-                self._write(val, 0x37, self.mpu_addr) # I think this is right.
+                self._write(val, 0x37, self.mpu_addr)  # I think this is right.
                 self._write(0x00, 0x6A, self.mpu_addr)
             except OSError:
                 raise MPUException(self._I2Cerror)
@@ -188,7 +207,7 @@ class InvenSenseMPU(object):
         '''
         Set sample rate as per Register Map document section 4.4
         '''
-        if rate < 0 or rate >255:
+        if rate < 0 or rate > 255:
             raise ValueError("Rate must be in range 0-255")
         try:
             self._write(rate, 0x19, self.mpu_addr)
@@ -201,23 +220,26 @@ class InvenSenseMPU(object):
         '''
         Accelerometer range
         Value:              0   1   2   3
-        for range +/-:      2   4   8   16  g 
+        for range +/-:      2   4   8   16  g
         '''
         try:
             self._read(self.buf1, 0x1C, self.mpu_addr)
             ari = self.buf1[0]//8
-            self._ar = ari # if read succeeded
         except OSError:
             raise MPUException(self._I2Cerror)
         return ari
 
     @accel_range.setter
     def accel_range(self, accel_range):
-        ar = (0x00, 0x08, 0x10, 0x18)
-        if accel_range in range(len(ar)):
+        '''
+        Set accelerometer range
+        Pass:               0   1   2   3
+        for range +/-:      2   4   8   16  g
+        '''
+        ar_bytes = (0x00, 0x08, 0x10, 0x18)
+        if accel_range in range(len(ar_bytes)):
             try:
-                self._write(ar[accel_range], 0x1C, self.mpu_addr)
-                self._ar = accel_range # if write succeeded
+                self._write(ar_bytes[accel_range], 0x1C, self.mpu_addr)
             except OSError:
                 raise MPUException(self._I2Cerror)
         else:
@@ -227,33 +249,40 @@ class InvenSenseMPU(object):
     @property
     def gyro_range(self):
         '''
-        Gyroscope range.
-        Pass:               0   1   2    3
+        Gyroscope range
+        Value:              0   1   2    3
         for range +/-:      250 500 1000 2000  degrees/second
         '''
         # set range
         try:
             self._read(self.buf1, 0x1B, self.mpu_addr)
             gri = self.buf1[0]//8
-            self._gr = gri # if read succeeded
         except OSError:
             raise MPUException(self._I2Cerror)
         return gri
 
     @gyro_range.setter
     def gyro_range(self, gyro_range):
-        gr = (0x00, 0x08, 0x10, 0x18)
-        if gyro_range in range(len(gr)):
+        '''
+        Set gyroscope range
+        Pass:               0   1   2    3
+        for range +/-:      250 500 1000 2000  degrees/second
+        '''
+        gr_bytes = (0x00, 0x08, 0x10, 0x18)
+        if gyro_range in range(len(gr_bytes)):
             try:
-                self._write(gr[gyro_range], 0x1B, self.mpu_addr) # Sets fchoice = b11 which enables filter
-                self._gr = gyro_range               # if write succeeded
+                self._write(gr_bytes[gyro_range], 0x1B, self.mpu_addr)  # Sets fchoice = b11 which enables filter
             except OSError:
                 raise MPUException(self._I2Cerror)
         else:
             raise ValueError('gyro_range can only be 0, 1, 2 or 3')
+
     # Accelerometer
     @property
     def accel(self):
+        '''
+        Acceleremoter object
+        '''
         return self._accel
 
     def _accel_callback(self):
@@ -268,9 +297,9 @@ class InvenSenseMPU(object):
         self._accel._ivector[1] = bytes_toint(self.buf6[2], self.buf6[3])
         self._accel._ivector[2] = bytes_toint(self.buf6[4], self.buf6[5])
         scale = (16384, 8192, 4096, 2048)
-        self._accel._vector[0] = self._accel._ivector[0]/scale[self._ar]
-        self._accel._vector[1] =  self._accel._ivector[1]/scale[self._ar]
-        self._accel._vector[2] =  self._accel._ivector[2]/scale[self._ar]
+        self._accel._vector[0] = self._accel._ivector[0]/scale[self.accel_range]
+        self._accel._vector[1] = self._accel._ivector[1]/scale[self.accel_range]
+        self._accel._vector[2] = self._accel._ivector[2]/scale[self.accel_range]
 
     def get_accel_irq(self):
         '''
@@ -282,10 +311,12 @@ class InvenSenseMPU(object):
         self._accel._ivector[1] = bytes_toint(self.buf6[2], self.buf6[3])
         self._accel._ivector[2] = bytes_toint(self.buf6[4], self.buf6[5])
 
-
     # Gyro
     @property
     def gyro(self):
+        '''
+        Gyroscope object
+        '''
         return self._gyro
 
     def _gyro_callback(self):
@@ -300,9 +331,9 @@ class InvenSenseMPU(object):
         self._gyro._ivector[1] = bytes_toint(self.buf6[2], self.buf6[3])
         self._gyro._ivector[2] = bytes_toint(self.buf6[4], self.buf6[5])
         scale = (131, 65.5, 32.8, 16.4)
-        self._gyro._vector[0] =  self._gyro._ivector[0]/scale[self._gr]
-        self._gyro._vector[1] =  self._gyro._ivector[1]/scale[self._gr]
-        self._gyro._vector[2] =  self._gyro._ivector[2]/scale[self._gr]
+        self._gyro._vector[0] = self._gyro._ivector[0]/scale[self.gyro_range]
+        self._gyro._vector[1] = self._gyro._ivector[1]/scale[self.gyro_range]
+        self._gyro._vector[2] = self._gyro._ivector[2]/scale[self.gyro_range]
 
     def get_gyro_irq(self):
         '''
