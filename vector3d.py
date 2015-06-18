@@ -1,7 +1,7 @@
 # vector3d.py 3D vector class for use in inertial measurement unit drivers
 # Authors Peter Hinch, Sebastian Plamauer
 
-# V0.5 17th June 2015
+# V0.6 18th June 2015
 
 '''
 The MIT License (MIT)
@@ -46,7 +46,7 @@ class Vector3d(object):
         self.cal = (0, 0, 0)
         self.argcheck(transposition, "Transposition")
         self.argcheck(scaling, "Scaling")
-        if (len(transposition) != len(set(transposition))) or min(transposition) < 0 or max(transposition) > 2:
+        if set(transposition) != {0, 1, 2}:
             raise ValueError('Transpose indices must be unique and in range 0-2')
         self._scale = scaling
         self._transpose = transposition
