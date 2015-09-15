@@ -82,7 +82,7 @@ class InvenSenseMPU(object):
             pyb.delay(200-tim)
 
         try:                                    # Initialise I2C
-            side = {'X': 1, 'Y': 2}[side_str.upper()]
+            side = {'X': 2, 'Y': 1}[side_str.upper()]
         except KeyError:
             raise ValueError('I2C side must be X or Y')
 
