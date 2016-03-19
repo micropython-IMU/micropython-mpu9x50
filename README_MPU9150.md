@@ -75,7 +75,8 @@ relative coordinates.
 ## Methods
 
 ``MPU9150()`` The constructor supports the following arguments  
-  1. side_str 'X' or 'Y' (mandatory) defines the I2C interface in use.
+  1. side_str 'X' or 'Y' (mandatory) defines the I2C interface in use. Alternatively an initialised
+I2C object may be passed.
   2. device_addr 0 or 1 (optional) Two devices may be used with addresses determined by the voltage
 on the AD0 pin. If only one device is used, this argument may be None when the device
 will be automatically detected.
