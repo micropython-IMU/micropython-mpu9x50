@@ -80,13 +80,14 @@ class InvenSenseMPU(object):
         tim = pyb.millis()                      # Ensure PSU and device have settled
         if tim < 200:
             pyb.delay(200-tim)
-
-        try:                                    # Initialise I2C
-            side = {'X': 1, 'Y': 2}[side_str.upper()]
-        except KeyError:
-            raise ValueError('I2C side must be X or Y')
-
-        self._mpu_i2c = pyb.I2C(side, pyb.I2C.MASTER)
+        if type(side_str) is str:
+            sst = side_str.upper()
+            if sst in {'X', 'Y'}:
+                self._mpu_i2c = pyb.I2C(sst, pyb.I2C.MASTER)
+            else:
+                raise ValueError('I2C side must be X or Y')
+        elif type(side_str) is pyb.I2C:
+            self._mpu_i2c = side_str
 
         if device_addr is None:
             devices = set(self._mpu_i2c.scan())
