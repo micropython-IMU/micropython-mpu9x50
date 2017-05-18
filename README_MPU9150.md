@@ -35,8 +35,8 @@ transposing axes. The driver returns vehicle-relative coordinates.
 Example:
 Example assuming an MPU9150 connected to 'X' I2C interface on the Pyboard:
 ```python
-from mpu1250 import MPU9150
-imu = MPU9250('X')
+from mpu9150 import MPU9150
+imu = MPU9150('X')
 print(imu.accel.xyz)
 print(imu.gyro.xyz)
 print(imu.mag.xyz)

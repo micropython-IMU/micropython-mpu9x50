@@ -3,7 +3,7 @@
 # Adapted from Sebastian Plamauer's MPU9150 driver:
 # https://github.com/micropython-IMU/micropython-mpu9150.git
 # Authors Peter Hinch, Sebastian Plamauer
-# V0.1 13th June 2015 Experimental: this code is not yet fully tested
+# V0.2 17th May 2017 Platform independent: utime and machine replace pyb
 
 '''
 mpu9250 is a micropython module for the InvenSense MPU9250 sensor.
@@ -37,7 +37,8 @@ THE SOFTWARE.
 # At runtime try to continue returning last good data value. We don't want aircraft
 # crashing. However if the I2C has crashed we're probably stuffed.
 
-import pyb
+from utime import sleep_ms
+from machine import I2C
 from vector3d import Vector3d
 
 
@@ -45,7 +46,6 @@ class MPUException(OSError):
     '''
     Exception for MPU devices
     '''
-
     pass
 
 
@@ -71,23 +71,18 @@ class InvenSenseMPU(object):
 
         self._accel = Vector3d(transposition, scaling, self._accel_callback)
         self._gyro = Vector3d(transposition, scaling, self._gyro_callback)
-        self.buf1 = bytearray([0]*1)            # Pre-allocated buffers for reads: allows reads to
-        self.buf2 = bytearray([0]*2)            # be done in interrupt handlers
-        self.buf3 = bytearray([0]*3)
-        self.buf6 = bytearray([0]*6)
-        self.timeout = 10                       # I2C tieout mS
+        self.buf1 = bytearray(1)                # Pre-allocated buffers for reads: allows reads to
+        self.buf2 = bytearray(2)                # be done in interrupt handlers
+        self.buf3 = bytearray(3)
+        self.buf6 = bytearray(6)
 
-        tim = pyb.millis()                      # Ensure PSU and device have settled
-        if tim < 200:
-            pyb.delay(200-tim)
-        if type(side_str) is str:
-            sst = side_str.upper()
-            if sst in {'X', 'Y'}:
-                self._mpu_i2c = pyb.I2C(sst, pyb.I2C.MASTER)
-            else:
-                raise ValueError('I2C side must be X or Y')
-        elif type(side_str) is pyb.I2C:
+        sleep_ms(200)                           # Ensure PSU and device have settled
+        if isinstance(side_str, str):           # Non-pyb targets may use other than X or Y
+            self._mpu_i2c = I2C(side_str)
+        elif hasattr(side_str, 'readfrom'):     # Soft or hard I2C: issue #3097
             self._mpu_i2c = side_str
+        else:
+            raise ValueError("Invalid I2C instance")
 
         if device_addr is None:
             devices = set(self._mpu_i2c.scan())
@@ -116,14 +111,15 @@ class InvenSenseMPU(object):
         '''
         Read bytes to pre-allocated buffer Caller traps OSError.
         '''
-        self._mpu_i2c.mem_read(buf, addr, memaddr, timeout=self.timeout)
+        self._mpu_i2c.readfrom_mem_into(addr, memaddr, buf)
 
     # write to device
     def _write(self, data, memaddr, addr):
         '''
         Perform a memory write. Caller should trap OSError.
         '''
-        self._mpu_i2c.mem_write(data, addr, memaddr, timeout=self.timeout)
+        self.buf1[0] = data
+        self._mpu_i2c.writeto_mem(addr, memaddr, self.buf1)
 
     # wake
     def wake(self):

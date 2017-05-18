@@ -20,18 +20,19 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 '''
+# 17th May 2017 utime replaces pyb
 # 15th June 2015 Now uses subclass of InvenSenseMPU
 
 from imu import InvenSenseMPU, bytes_toint, MPUException
 from vector3d import Vector3d
-import pyb
-
+from utime import sleep_ms
 
 def default_mag_wait():
     '''
     delay of 1ms
     '''
-    pyb.delay(1)
+    sleep_ms(1)
+
 
 
 class MPU9150(InvenSenseMPU):
