@@ -1,6 +1,7 @@
 # vector3d.py 3D vector class for use in inertial measurement unit drivers
 # Authors Peter Hinch, Sebastian Plamauer
 
+# V0.7 17th May 2017 pyb replaced with utime
 # V0.6 18th June 2015
 
 '''
@@ -23,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 '''
 
-import pyb
+from utime import sleep_ms
 from math import sqrt, degrees, acos, atan2
 
 
@@ -31,7 +32,7 @@ def default_wait():
     '''
     delay of 50 ms
     '''
-    pyb.delay(50)
+    sleep_ms(50)
 
 
 class Vector3d(object):
