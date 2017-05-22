@@ -59,6 +59,7 @@ class MPU9150(InvenSenseMPU):
 
         super().__init__(side_str, device_addr, transposition, scaling)
         self.filter_range = 0           # fast filtered response
+        self._mag = None
         if MPU9150.has_mag:
             self._mag = Vector3d(transposition, scaling, self._mag_callback)
             self._mag_stale_count = 0   # Count of consecutive reads where old data was returned
