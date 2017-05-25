@@ -53,16 +53,19 @@ class MPU9150(InvenSenseMPU):
     _mpu_addr = (104, 105)  # addresses of MPU9150 there can be two devices
     _mag_addr = 12
     _chip_id = 104
+    has_mag = True          # MPU6050 support
 
     def __init__(self, side_str, device_addr=None, transposition=(0, 1, 2), scaling=(1, 1, 1)):
 
         super().__init__(side_str, device_addr, transposition, scaling)
-        self._mag = Vector3d(transposition, scaling, self._mag_callback)
         self.filter_range = 0           # fast filtered response
-        self._mag_stale_count = 0       # Count of consecutive reads where old data was returned
-        self.mag_triggered = False      # Ensure mag is triggered once only until it's read
-        self.mag_correction = self._magsetup()  # Returns correction factors.
-        self.mag_wait_func = default_mag_wait
+        self._mag = None
+        if MPU9150.has_mag:
+            self._mag = Vector3d(transposition, scaling, self._mag_callback)
+            self._mag_stale_count = 0   # Count of consecutive reads where old data was returned
+            self.mag_triggered = False  # Ensure mag is triggered once only until it's read
+            self.mag_correction = self._magsetup()  # Returns correction factors.
+            self.mag_wait_func = default_mag_wait
 
     @property
     def sensors(self):

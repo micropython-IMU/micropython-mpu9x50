@@ -1,10 +1,11 @@
 # Module mpu9150
 
-Note to existing users: as of 16th June 2015 the interface to this driver has changed.
-
 mpu9150 is a micropython module for the InvenSense MPU9150 sensor.
 It measures acceleration, turn rate and the magnetic field in three axes.
-Breakout board: https://www.sparkfun.com/products/11486  
+Breakout board: https://www.sparkfun.com/products/11486
+
+The driver supports the MPU6050, which is the same device but without the
+magnetometer.
 
 If you have any questions, open an issue.
 
@@ -46,7 +47,21 @@ print(imu.accel.z)
 
 # Modules
 
-To employ the driver it is only necessary to import the mpu9150 module and to use the ``MPU9150`` class.
+The following modules should be available on the target hardware:
+
+ 1. imu.py
+ 2. mpu9150.py
+ 3. vector3d.py
+
+To employ the driver it is necessary to import the mpu9150 module and to use
+the ``MPU9150`` class as per quickstart above. For MPU6050 support issue the
+following:
+
+```python
+from mpu9150 import MPU9150
+MPU9150.has_mag = False  # Device lacks a magnetometer
+imu = MPU9150('X')  # Arguments to match hardware
+```
 
 ### mpu9150
 
@@ -63,7 +78,7 @@ This will be raised in the event of an I2C error. It is derived from the Python 
 ### vector3d
 
 ``Vector3d``  
-Class for a 3D vector. This is documented in vector3d.md
+Class for a 3D vector. This is documented [here](./vector3d.md).
 
 # MPU9150 Class
 
@@ -102,7 +117,8 @@ as it can be unclear when the heap is likely to be invoked causing an exception.
 ## Principal Properties
 
 ``sensors``  
-Returns three Vector3d objects, accelerometer, gyro and magnetometer.
+Returns three Vector3d objects, accelerometer, gyro and magnetometer. In the
+case of the MPU6050 the magnetometer will be ``None``.
 
 ``accel_range`` integer 0 to 3 read/write  
 Returns or sets the current accelerometer range: this determines the accelerometer full scale
@@ -128,6 +144,25 @@ Range affects only the full scale capability and resolution.
 |   2   |      1000         |
 |   3   |      2000         |
 
+``filter_range`` integer read/write.  
+Sets or returns the current accel and gyro low pass filter range. Values can range from 0-6
+with values out of that range printing a message and being ignore.
+
+The digital low pass filter enables the effect of vibration to be reduced in the accelerometer
+and gyro readings. The following table gives the approximate bandwidth and delay for the filter.
+Precise values differ slightly between the accelerometer and the gyro and can be obtained
+from the device datasheet.
+
+| value | bw(Hz) | Delay(mS) |
+|:-----:|:------:|:---------:|
+|  0    |  260   |    0.0    |
+|  1    |  184   |    2.0    |
+|  2    |   94   |    3.0    |
+|  3    |   44   |    4.9    |
+|  4    |   21   |    8.5    |
+|  5    |   10   |   13.8    |
+|  6    |    5   |   19.0    |
+
 ``temperature`` float read only  
 Returns the chip temperature in degrees celcius
 
@@ -136,6 +171,9 @@ Returns the ``Vector3d`` holding the current accelerometer data. Units are g.
 
 ``gyro`` Vector3d instance read only  
 Returns the ``Vector3d`` holding the current gyro data. Units degrees/s.
+
+The following relate to the magnetometer: in the case of the MPU6050 they
+should not be used.
 
 ``mag``  Vector3d instance read only  
 This property supports blocking reads and returns the ``Vector3d`` holding the current
@@ -186,25 +224,6 @@ x, y, z = imu.mag.xyz # will return immediately
 ``mag_stale_count`` integer read only  
 As described above: a count of the number of consecutive times in the curent sequence
 of reads that the driver has returned out-of-date values.
-
-``filter_range`` integer read/write.  
-Sets or returns the current accel and gyro low pass filter range. Values can range from 0-6
-with values out of that range printing a message and being ignore.
-
-The digital low pass filter enables the effect of vibration to be reduced in the accelerometer
-and gyro readings. The following table gives the approximate bandwidth and delay for the filter.
-Precise values differ slightly between the accelerometer and the gyro and can be obtained
-from the device datasheet.
-
-| value | bw(Hz) | Delay(mS) |
-|:-----:|:------:|:---------:|
-|  0    |  260   |    0.0    |
-|  1    |  184   |    2.0    |
-|  2    |   94   |    3.0    |
-|  3    |   44   |    4.9    |
-|  4    |   21   |    8.5    |
-|  5    |   10   |   13.8    |
-|  6    |    5   |   19.0    |
 
 ``mag_wait_func``  
 When doing a blocking read the driver repeatedly calls this function. The default function provides a 1mS
@@ -263,9 +282,6 @@ I2C adress of the accelerometer and the gyroscope.
 
 ``_mag_addr``  
 I2C adress of the magnetometer.
-
-``timeout``  
-Timeout for I2C operations. Default is 10mS.
 
 # Exception handling
 
