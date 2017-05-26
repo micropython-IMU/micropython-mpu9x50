@@ -24,7 +24,7 @@ transposing axes. The driver returns vehicle-relative coordinates.
 
 ### Wiring the sensor to the pyboard
 
-| pyboard| mpu9250 |
+| pyboard| mpu9150 |
 |:------:|:-------:|
 | VIN    | 3V3     |
 | GND    | GND     |
@@ -52,7 +52,6 @@ from imu import MPU6050
 imu = MPU6050('X')
 print(imu.accel.xyz)
 print(imu.gyro.xyz)
-print(imu.mag.xyz)
 print(imu.temperature)
 print(imu.accel.z)
 ```
@@ -304,13 +303,13 @@ I2C adress of the magnetometer.
 
 Incorrect values such as  
 ```python
-imu = MPU9250('Z')
+imu = MPU9150('Z')
 ```
 will raise a ValueError with a meaningful error message.  
 When any communication with the IMU takes place it is possible for the I2C bus to lock up.
 This is normally a consequence of hardware failure such as the device being connected incorrectly
 or leads being too long. In this instance a custom MPUException will be raised with a
-dscriptive message. This is derived from Python's OSError: the user may trap either in the hope
+descriptive message. This is derived from Python's OSError: the user may trap either in the hope
 of continuing operation. In my experience this seldom works: if the I2C bus locks up a
 power cycle is required to clear it.
 
