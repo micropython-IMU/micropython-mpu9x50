@@ -1,7 +1,7 @@
 As of now, this repo holds:
 * vector3d - a vector class for IMU devices
-* imu - a base class for MPU9x50 devices
-* mpu9150 - a class for the MPU9150 and MPU6050
+* imu - a base class for MPU9x50 devices. Supports the MPU6050.
+* mpu9150 - a class for the MPU9150
 * mpu9250 - a class for the MPU9250
 
 vector3d will eventually be spun out to serve as common starting point for other

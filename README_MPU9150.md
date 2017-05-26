@@ -1,11 +1,11 @@
-# Module mpu9150
+# Modules imu and mpu9150
 
 mpu9150 is a micropython module for the InvenSense MPU9150 sensor.
 It measures acceleration, turn rate and the magnetic field in three axes.
 Breakout board: https://www.sparkfun.com/products/11486
 
-The driver supports the MPU6050, which is the same device but without the
-magnetometer.
+imu supports the MPU6050, which is the same device but without the magnetometer.
+It provides the base class for the MPU9150 class.
 
 If you have any questions, open an issue.
 
@@ -33,7 +33,7 @@ transposing axes. The driver returns vehicle-relative coordinates.
 
 ### Quickstart
 
-Example:
+MPU9150 Example:
 Example assuming an MPU9150 connected to 'X' I2C interface on the Pyboard:
 ```python
 from mpu9150 import MPU9150
@@ -45,12 +45,25 @@ print(imu.temperature)
 print(imu.accel.z)
 ```
 
+MPU6050 Example:
+Example assuming an MPU6050 connected to 'X' I2C interface on the Pyboard:
+```python
+from imu import MPU6050
+imu = MPU6050('X')
+print(imu.accel.xyz)
+print(imu.gyro.xyz)
+print(imu.mag.xyz)
+print(imu.temperature)
+print(imu.accel.z)
+```
+
+
 # Modules
 
 The following modules should be available on the target hardware:
 
  1. imu.py
- 2. mpu9150.py
+ 2. mpu9150.py (unless running an MPU6050).
  3. vector3d.py
 
 To employ the driver it is necessary to import the mpu9150 module and to use
@@ -58,9 +71,8 @@ the ``MPU9150`` class as per quickstart above. For MPU6050 support issue the
 following:
 
 ```python
-from mpu9150 import MPU9150
-MPU9150.has_mag = False  # Device lacks a magnetometer
-imu = MPU9150('X')  # Arguments to match hardware
+from imu import MPU6050
+imu = MPU6050('X')  # Arguments to match hardware
 ```
 
 ### mpu9150
@@ -70,7 +82,7 @@ Class for the MPU9150 sensor.
 
 ### imu
 
-``InvenSenseMPU``  
+``MPU6050``  
 Base class for InvenSense inertial measurement units.  
 ``MPUException``  
 This will be raised in the event of an I2C error. It is derived from the Python ``OSError``.
@@ -80,7 +92,11 @@ This will be raised in the event of an I2C error. It is derived from the Python 
 ``Vector3d``  
 Class for a 3D vector. This is documented [here](./vector3d.md).
 
-# MPU9150 Class
+# MPU9150 and MPU6050 Classes
+
+The MPU9150 class is a superset of MPU6050. The classes are documented as one.
+Features missing from the MPU6050 relate to the magnetometer and are detailed
+below.
 
 The class has various properties returning Vector3d instances. The principal properties
 of the Vector3d are ``x``, ``y`` and ``z`` returning the vector's components and ``xyz`` which returns
@@ -108,7 +124,7 @@ sets the device to sleep mode
 
 ``get_accel_irq()``  
 ``get_gyro_irq()``  
-``get_mag_irq()``  
+``get_mag_irq()`` (MPU9150 only)  
 These methods are somewhat experimental. They are capable of being called from within an
 interrupt callback and update the integer properties only of the relevant Vector3D object.
 Currently writing nontrivial MicroPython interrupt callbacks is something of a black art
@@ -118,7 +134,7 @@ as it can be unclear when the heap is likely to be invoked causing an exception.
 
 ``sensors``  
 Returns three Vector3d objects, accelerometer, gyro and magnetometer. In the
-case of the MPU6050 the magnetometer will be ``None``.
+case of the MPU6050 accelerometer and gyro objects only are returned.
 
 ``accel_range`` integer 0 to 3 read/write  
 Returns or sets the current accelerometer range: this determines the accelerometer full scale
@@ -172,8 +188,7 @@ Returns the ``Vector3d`` holding the current accelerometer data. Units are g.
 ``gyro`` Vector3d instance read only  
 Returns the ``Vector3d`` holding the current gyro data. Units degrees/s.
 
-The following relate to the magnetometer: in the case of the MPU6050 they
-should not be used.
+The following are unavailable in the case of the MPU6050:
 
 ``mag``  Vector3d instance read only  
 This property supports blocking reads and returns the ``Vector3d`` holding the current
@@ -231,7 +246,7 @@ delay but the user can override this, typically to provide a thread-aware delay 
 multitasking environments. Longer delays will have no effect other than increasing the latency
 of the read.
 
-See "Other MPU9150 properties" below.
+See "Other properties" below.
 
 #### Use in interrupt callbacks
 
@@ -243,7 +258,7 @@ to the device where this must be performed in a callback.
 
 ``get_accel_irq()``  
 ``get_gyro_irq()``  
-``get_mag_irq()``  
+``get_mag_irq()`` (MPU9150 only)  
 These methods read the device and update the integer values of the Vector3D objects only.
 These values hold unscaled values direct from the device so coordinates are device
 relative and no calibration, correction or scaling is applied.
@@ -257,7 +272,7 @@ them to scaled integers in initialisation code.
 
 See tests/irqtest.py for example code.
 
-## Other MPU9150 properties
+## Other properties
 
 ``passthrough`` Boolean read/write  
 sets passthrough mode. It is activated (True) by default. This needs to be activated
@@ -269,9 +284,6 @@ The update rate is given by rate = Internal_Sample_Rate / (1 + sample_rate). It 
 clear, given the subset of functionality supported by this driver, why you might want
 to change this from the zero default.
 
-``mag_correction`` float 3-tuple  
-Holds factory-set magnetometer correction values.
-
 ``chip_id``  
 The ID of chip (104) is hardcoded on the sensor. Reading this property will test the
 communications with the IMU by reading this value which is returned to the user. A
@@ -279,6 +291,11 @@ ValueError will be raised if the value is incorrect.
 
 ``_mpu_addr``  
 I2C adress of the accelerometer and the gyroscope.
+
+For MPU9150 only:
+
+``mag_correction`` float 3-tuple  
+Holds factory-set magnetometer correction values.
 
 ``_mag_addr``  
 I2C adress of the magnetometer.
@@ -318,11 +335,11 @@ mounted upside down. The default (1, 1, 1) is a conventionally mounted IMU. Scal
 after transposition. In other words it is applied to vehicle coordinates rather than sensor
 coordinates.
 
-# Demo of calibration
+# Demo of magnetometer calibration
 
 ```python
->>> from  mpu9250 import MPU9250
->>> a = MPU9250('x')
+>>> from  mpu9150 import MPU9150
+>>> a = MPU9150('X')
 >>> a.mag.cal
 (0, 0, 0)
 >>> import pyb

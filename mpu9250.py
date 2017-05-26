@@ -39,7 +39,6 @@ class MPU9250(MPU6050):
           coordinates rather than those of the sensor itself. See readme.
     '''
 
-    _mpu_addr = (104, 105)  # addresses of MPU9250 determined by voltage on pin AD0
     _mag_addr = 12          # Magnetometer address
     _chip_id = 113
 
