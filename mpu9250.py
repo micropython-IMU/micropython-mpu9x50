@@ -25,11 +25,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 '''
 
-from imu import InvenSenseMPU, bytes_toint, MPUException
+from imu import MPU6050, bytes_toint, MPUException
 from vector3d import Vector3d
 
 
-class MPU9250(InvenSenseMPU):
+class MPU9250(MPU6050):
     '''
     MPU9250 constructor arguments
     1. side_str 'X' or 'Y' depending on the Pyboard I2C interface being used
