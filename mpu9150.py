@@ -23,7 +23,7 @@ THE SOFTWARE.
 # 17th May 2017 utime replaces pyb
 # 15th June 2015 Now uses subclass of InvenSenseMPU
 
-from imu import InvenSenseMPU, bytes_toint, MPUException
+from imu import MPU6050, bytes_toint, MPUException
 from vector3d import Vector3d
 from utime import sleep_ms
 
@@ -35,7 +35,7 @@ def default_mag_wait():
 
 
 
-class MPU9150(InvenSenseMPU):
+class MPU9150(MPU6050):
     '''
     Module for the MPU9150 9DOF IMU. Pass X or Y according to on which side the
     sensor is connected. Pass 1 for the first, 2 for the second connected sensor.
@@ -50,22 +50,18 @@ class MPU9150(InvenSenseMPU):
           coordinates rather than those of the sensor itself. See readme.
     '''
 
-    _mpu_addr = (104, 105)  # addresses of MPU9150 there can be two devices
     _mag_addr = 12
-    _chip_id = 104
-    has_mag = True          # MPU6050 support
 
     def __init__(self, side_str, device_addr=None, transposition=(0, 1, 2), scaling=(1, 1, 1)):
 
         super().__init__(side_str, device_addr, transposition, scaling)
         self.filter_range = 0           # fast filtered response
         self._mag = None
-        if MPU9150.has_mag:
-            self._mag = Vector3d(transposition, scaling, self._mag_callback)
-            self._mag_stale_count = 0   # Count of consecutive reads where old data was returned
-            self.mag_triggered = False  # Ensure mag is triggered once only until it's read
-            self.mag_correction = self._magsetup()  # Returns correction factors.
-            self.mag_wait_func = default_mag_wait
+        self._mag = Vector3d(transposition, scaling, self._mag_callback)
+        self._mag_stale_count = 0   # Count of consecutive reads where old data was returned
+        self.mag_triggered = False  # Ensure mag is triggered once only until it's read
+        self.mag_correction = self._magsetup()  # Returns correction factors.
+        self.mag_wait_func = default_mag_wait
 
     @property
     def sensors(self):
@@ -74,50 +70,6 @@ class MPU9150(InvenSenseMPU):
         '''
         return self._accel, self._gyro, self._mag
 
-    # get temperature
-    @property
-    def temperature(self):
-        '''
-        Returns the temperature in degree C.
-        '''
-        try:
-            self._read(self.buf2, 0x41, self.mpu_addr)
-        except OSError:
-            raise MPUException(self._I2Cerror)
-        return bytes_toint(self.buf2[0], self.buf2[1])/340 + 35  # I think
-
-    # Low pass filters
-    @property
-    def filter_range(self):
-        '''
-        Returns the gyro and temperature sensor low pass filter cutoff frequency
-        Pass:               0   1   2   3   4   5   6
-        Cutoff (Hz):        250 184 92  41  20  10  5
-        Sample rate (KHz):  8   1   1   1   1   1   1
-        '''
-        try:
-            self._read(self.buf1, 0x1A, self.mpu_addr)
-            res = self.buf1[0] & 7
-        except OSError:
-            raise MPUException(self._I2Cerror)
-        return res
-
-    @filter_range.setter
-    def filter_range(self, filt):
-        '''
-        Sets the gyro and temperature sensor low pass filter cutoff frequency
-        Pass:               0   1   2   3   4   5   6
-        Cutoff (Hz):        250 184 92  41  20  10  5
-        Sample rate (KHz):  8   1   1   1   1   1   1
-        '''
-        # set range
-        if filt in range(7):
-            try:
-                self._write(filt, 0x1A, self.mpu_addr)
-            except OSError:
-                raise MPUException(self._I2Cerror)
-        else:
-            raise ValueError('Filter coefficient must be between 0 and 6')
 
     @property
     def mag(self):

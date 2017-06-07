@@ -60,14 +60,17 @@ def bytes_toint(msb, lsb):
     return - (((msb ^ 255) << 8) | (lsb ^ 255) + 1)
 
 
-class InvenSenseMPU(object):
+class MPU6050(object):
     '''
-    Module for InvenSense 9DOF IMUs. Base class implements features common to MPU9150 and MPU9250.
+    Module for InvenSense IMUs. Base class implements MPU6050 6DOF sensor, with
+    features common to MPU9150 and MPU9250 9DOF sensors.
     '''
 
     _I2Cerror = "I2C failure when communicating with IMU"
+    _mpu_addr = (104, 105)  # addresses of MPU9150/MPU6050. There can be two devices
+    _chip_id = 104
 
-    def __init__(self, side_str, device_addr, transposition, scaling):
+    def __init__(self, side_str, device_addr=None, transposition=(0, 1, 2), scaling=(1, 1, 1)):
 
         self._accel = Vector3d(transposition, scaling, self._accel_callback)
         self._gyro = Vector3d(transposition, scaling, self._gyro_callback)
@@ -79,7 +82,7 @@ class InvenSenseMPU(object):
         sleep_ms(200)                           # Ensure PSU and device have settled
         if isinstance(side_str, str):           # Non-pyb targets may use other than X or Y
             self._mpu_i2c = I2C(side_str)
-        elif hasattr(side_str, 'readfrom'):     # Soft or hard I2C: issue #3097
+        elif hasattr(side_str, 'readfrom'):     # Soft or hard I2C instance. See issue #3097
             self._mpu_i2c = side_str
         else:
             raise ValueError("Invalid I2C instance")
@@ -158,6 +161,25 @@ class InvenSenseMPU(object):
             raise ValueError('Bad chip ID retrieved: MPU communication failure')
         return chip_id
 
+    @property
+    def sensors(self):
+        '''
+        returns sensor objects accel, gyro
+        '''
+        return self._accel, self._gyro
+
+    # get temperature
+    @property
+    def temperature(self):
+        '''
+        Returns the temperature in degree C.
+        '''
+        try:
+            self._read(self.buf2, 0x41, self.mpu_addr)
+        except OSError:
+            raise MPUException(self._I2Cerror)
+        return bytes_toint(self.buf2[0], self.buf2[1])/340 + 35  # I think
+
     # passthrough
     @property
     def passthrough(self):
@@ -210,6 +232,40 @@ class InvenSenseMPU(object):
             self._write(rate, 0x19, self.mpu_addr)
         except OSError:
             raise MPUException(self._I2Cerror)
+
+    # Low pass filters. Using the filter_range property of the MPU9250 is
+    # harmless but gyro_filter_range is preferred and offers an extra setting.
+    @property
+    def filter_range(self):
+        '''
+        Returns the gyro and temperature sensor low pass filter cutoff frequency
+        Pass:               0   1   2   3   4   5   6
+        Cutoff (Hz):        250 184 92  41  20  10  5
+        Sample rate (KHz):  8   1   1   1   1   1   1
+        '''
+        try:
+            self._read(self.buf1, 0x1A, self.mpu_addr)
+            res = self.buf1[0] & 7
+        except OSError:
+            raise MPUException(self._I2Cerror)
+        return res
+
+    @filter_range.setter
+    def filter_range(self, filt):
+        '''
+        Sets the gyro and temperature sensor low pass filter cutoff frequency
+        Pass:               0   1   2   3   4   5   6
+        Cutoff (Hz):        250 184 92  41  20  10  5
+        Sample rate (KHz):  8   1   1   1   1   1   1
+        '''
+        # set range
+        if filt in range(7):
+            try:
+                self._write(filt, 0x1A, self.mpu_addr)
+            except OSError:
+                raise MPUException(self._I2Cerror)
+        else:
+            raise ValueError('Filter coefficient must be between 0 and 6')
 
     # accelerometer range
     @property

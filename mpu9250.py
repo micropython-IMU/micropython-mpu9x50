@@ -25,11 +25,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 '''
 
-from imu import InvenSenseMPU, bytes_toint, MPUException
+from imu import MPU6050, bytes_toint, MPUException
 from vector3d import Vector3d
 
 
-class MPU9250(InvenSenseMPU):
+class MPU9250(MPU6050):
     '''
     MPU9250 constructor arguments
     1. side_str 'X' or 'Y' depending on the Pyboard I2C interface being used
@@ -39,7 +39,6 @@ class MPU9250(InvenSenseMPU):
           coordinates rather than those of the sensor itself. See readme.
     '''
 
-    _mpu_addr = (104, 105)  # addresses of MPU9250 determined by voltage on pin AD0
     _mag_addr = 12          # Magnetometer address
     _chip_id = 113
 
