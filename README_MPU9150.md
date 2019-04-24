@@ -2,7 +2,6 @@
 
 mpu9150 is a micropython module for the InvenSense MPU9150 sensor.
 It measures acceleration, turn rate and the magnetic field in three axes.
-Breakout board: https://www.sparkfun.com/products/11486
 
 imu supports the MPU6050, which is the same device but without the magnetometer.
 It provides the base class for the MPU9150 class.

@@ -12,7 +12,8 @@ Documentation for the MPU9150/MPU6050 can be found [here](./README_MPU9150.md).
 
 mpu9250 is a micropython module for the InvenSense MPU9250 sensor.
 It measures acceleration, turn rate and the magnetic field in three axes.  
-Breakout board: [Drotek](http://www.drotek.fr/shop/en/home/421-mpu9250-gyro-accelerometer-magnetometer.html)  
+Breakout board: [Drotek](https://store.drotek.com/imu-10dof-mpu9250-ms5611),
+[Sparkfun](https://www.sparkfun.com/products/13762)  
 
 The MPU9250 has a number of advantages over the MPU9150 (which has manufacturing status
 "not recommended for new designs"). The magnetometer is capable of continuous operation,
@@ -76,7 +77,7 @@ Base class for InvenSense inertial measurement units.
 ### vector3d
 
 ``Vector3d``  
-Class for a 3D vector. This is documented in vector3d.md.
+Class for a 3D vector. This is documented [here](./vector3d.md).
 
 # MPU9250 Class
 
