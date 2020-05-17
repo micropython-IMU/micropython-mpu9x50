@@ -1,30 +1,40 @@
-# Example 2 of nonblocking magnetometer reads, demonstrating delegation of polling to a scheduler
-# Expects an MPU9150 on X side and a 24*2 LCD with Hitachi controller wired as per PINLIST
+# Example 2 of nonblocking magnetometer reads, demonstrating use with uasyncio
 
-import pyb
-from usched import Sched, wait, Poller
-from lcdthread import LCD, PINLIST                          # Library supporting Hitachi LCD module
+# Author: Peter Hinch
+# Copyright Peter Hinch 2020 Released under the MIT license
+
+# Expects an MPU9150 on X side and a 24*2 LCD with Hitachi controller wired as per PINLIST
+# Requires uasyncio V3 and as_drivers directory (plus contents) from
+# https://github.com/peterhinch/micropython-async/tree/master/v3
+
+import uasyncio as asyncio
+from machine import I2C
+from as_drivers.hd44780.alcd import LCD, PINLIST  # Library supporting Hitachi LCD module
 from mpu9150 import MPU9150
 
-def pollfunc(mpu):
-    return 1 if mpu.mag_ready else None
 
-def lcd_thread(mylcd,mpu9150):
-    k = mpu9150.mag_correction
+async def lcd_task(mylcd, imu):
+    print('Running...')
+    k = imu.mag_correction
     mylcd[1] = "x {:5.3f} y {:5.3f} z {:5.3f}".format(k[0],k[1],k[2])
     while True:
-        reason = (yield Poller(pollfunc, (mpu9150,)))       # Scheduler returns when pollfunc
-        if reason[1] == 1:                                  # returns something other than None. 1 indicates ready.
-            xyz = mpu9150.mag.xyz
-            mylcd[0] = "x {:5.1f} y {:5.1f} z {:5.1f}".format(xyz[0], xyz[1], xyz[2])
-        elif reason[1] == 2:
+        try:
+            while not imu.mag_ready:
+                await asyncio.sleep(0)
+        except OSError:
             mylcd[0] = "Mag read failure"
-        yield from wait(0.5)
+            continue
+        xyz = imu.mag.xyz
+        mylcd[0] = "x {:5.1f} y {:5.1f} z {:5.1f}".format(xyz[0], xyz[1], xyz[2])
+        await asyncio.sleep_ms(500)
 
-objSched = Sched()
-lcd0 = LCD(PINLIST, objSched, cols = 24)
-mpu9150 = MPU9150('X')
-objSched.add_thread(lcd_thread(lcd0, mpu9150))
-objSched.run()
+lcd0 = LCD(PINLIST, cols = 24)
+imu = MPU9150(I2C(1))
 
+try:
+    asyncio.run(lcd_task(lcd0, imu))
+except KeyboardInterrupt:
+    print('Interrupted')
+finally:
+    asyncio.new_event_loop()
 
