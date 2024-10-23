@@ -181,7 +181,8 @@ class MPU6050(object):
             self._read(self.buf2, 0x41, self.mpu_addr)
         except OSError:
             raise MPUException(self._I2Cerror)
-        return bytes_toint(self.buf2[0], self.buf2[1]) / 340 + 35  # I think
+        # MPU-6000 and MPU-6050 Register Map and Descriptions Revision 4.2:
+        return bytes_toint(self.buf2[0], self.buf2[1]) / 340 + 36.53
 
     # passthrough
     @property
